@@ -86,7 +86,7 @@ impl TAState {
                     players: m
                         .associated_users
                         .iter()
-                        .map(|u| {
+                        .filter_map(|u| {
                             self.players
                                 .iter()
                                 .find(|p| p.guid == *u)
@@ -94,13 +94,12 @@ impl TAState {
                                     id: Uuid::parse_str(&p.guid).unwrap(),
                                     name: p.name.clone(),
                                 })
-                                .unwrap_or_default()
                         })
                         .collect(),
                     coordinators: m
                         .associated_users
                         .iter()
-                        .map(|u| {
+                        .filter_map(|u| {
                             self.coordinators
                                 .iter()
                                 .find(|p| p.guid == *u)
@@ -108,7 +107,6 @@ impl TAState {
                                     id: Uuid::parse_str(&c.guid).unwrap(),
                                     name: c.name.clone(),
                                 })
-                                .unwrap_or_default()
                         })
                         .collect(),
                     current_map: {
