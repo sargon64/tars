@@ -20,7 +20,13 @@ impl TAConnection {
     pub async fn connect<T: Into<String>, U: Into<String>>(uri: T, name: U) -> anyhow::Result<Self> {
         let uri = uri.into();
         let name = name.into();
-        let (ws_stream, _) = tokio_tungstenite::connect_async(uri).await?;
+        let (ws_stream, _) = match tokio_tungstenite::connect_async(uri).await {
+            Ok(c) => c,
+            Err(_) => {
+                log::error!("Failed to connect to server. Are you sure you're connecting to the overlay websocket?");
+                return Err(anyhow::anyhow!("Failed to connect to server. Are you sure you're connecting to the overlay websocket?"));
+            },
+        };
         let (mut ws_tx, ws_rx) = ws_stream.split();
         let ws_user = models::User { 
             guid: uuid::Uuid::new_v4().to_string(),
