@@ -6,8 +6,8 @@ use crate::{
     proto::{
         models,
         packet::{self, event},
-    },
-    TA_CON,
+    }, connection::TAConnection,
+    // TA_CON,
 };
 
 #[derive(Debug, Default, Clone)]
@@ -105,15 +105,22 @@ impl TAState {
                                 //add the overlay to the match's associated users.
                                 r#match
                                     .associated_users
-                                    .extend(self.server_users.iter().map(|u| u.guid.clone()));
+                                    .extend(self.server_users.iter().filter(|f| !f.name.contains("TX")).map(|u| u.guid.clone()));
 
                                 self.matches.push(r#match.clone());
 
-                                TA_CON
-                                    .write()
-                                    .await
-                                    .as_mut()
-                                    .unwrap()
+                                let mut con = TAConnection::connect(
+                                    std::env::var("TA_WS_URI").unwrap(),
+                                    "TA-Relay-TX",
+                                )
+                                .await
+                                .unwrap();
+
+                                con
+                                    // .write()
+                                    // .await
+                                    // .as_mut()
+                                    // .unwrap()
                                     .send(packet::Packet {
                                         id: Uuid::new_v4().to_string(),
                                         from: "".to_string(),
@@ -130,6 +137,8 @@ impl TAState {
                                         )),
                                     })
                                     .await?;
+                                    
+                                con.close().await;
                             }
                             None => {
                                 log::warn!("Received MatchCreatedEvent with no match");

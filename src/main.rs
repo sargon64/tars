@@ -45,9 +45,6 @@ lazy_static::lazy_static! {
     pub static ref TA_STATE : RwLock<packets::TAState> = {
         RwLock::new(packets::TAState::new())
     };
-    pub static ref TA_CON: RwLock<Option<connection::TAConnection>> = {
-        RwLock::new(None)
-    };
 
     pub static ref TA_UPDATE_SINK: Sink<TAUpdates> = {
         Sink::new()
@@ -73,14 +70,7 @@ async fn main() -> anyhow::Result<()> {
             .unwrap()
             .block_on(async {
                 log::info!("Connecting to Server...");
-                *TA_CON.write().await = Some(
-                    connection::TAConnection::connect(
-                        std::env::var("TA_WS_URI").unwrap(),
-                        "TA-Relay-TX",
-                    )
-                    .await
-                    .unwrap(),
-                );
+
                 let mut ta_con = connection::TAConnection::connect(
                     std::env::var("TA_WS_URI").unwrap(),
                     "TA-Relay-RX",
@@ -96,8 +86,9 @@ async fn main() -> anyhow::Result<()> {
                             continue;
                         }
                     };
-                    tokio::spawn(async {
-                        packets::route_packet(&mut *TA_STATE.write().await, msg)
+
+                    tokio::spawn(async move {
+                        packets::route_packet(&mut *TA_STATE.write().await,msg)
                             .await
                             .unwrap();
 
