@@ -1,17 +1,16 @@
 use std::pin::Pin;
 
 use futures_util::Stream;
-use juniper::{GraphQLObject, RootNode, EmptyMutation, EmptySubscription, FieldError};
-use uuid::Uuid;
+use juniper::{EmptyMutation, FieldError, RootNode};
 
-use crate::{TA_STATE, structs::GQLTAState, TA_UPDATE_SINK, TAUpdates};
+use crate::{structs::GQLTAState, TAUpdates, TA_STATE, TA_UPDATE_SINK};
 
 pub struct Query;
 
 #[juniper::graphql_object(context = Context)]
 impl Query {
-    async fn state() ->  GQLTAState {
-        (*TA_STATE.read().await).into_gql().await
+    async fn state() -> GQLTAState {
+        (*TA_STATE.read().await).as_gql().await
     }
 }
 
@@ -21,20 +20,21 @@ type GQLTAStateStream = Pin<Box<dyn Stream<Item = Result<GQLTAState, FieldError>
 
 #[juniper::graphql_subscription(context = Context)]
 impl Subscription {
-    async fn state() ->  GQLTAStateStream {
+    async fn state() -> GQLTAStateStream {
         let mut stream = TA_UPDATE_SINK.stream().events();
 
         // magic macro :)
-        async_stream::stream! {            
+        async_stream::stream! {
             while let Some(update) = stream.next() {
                 match update {
                     TAUpdates::NewState => {
-                        yield Ok((*TA_STATE.read().await).into_gql().await);
+                        yield Ok((*TA_STATE.read().await).as_gql().await);
                     },
                     _ => {}
                 }
             }
-        }.boxed()
+        }
+        .boxed()
     }
 }
 
