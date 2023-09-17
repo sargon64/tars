@@ -2,13 +2,10 @@ use std::collections::HashMap;
 
 use uuid::Uuid;
 
-use crate::{
-    proto::{
-        models,
-        packet::{self, event},
-    },
-    TA_CON,
-};
+use crate::{proto::{
+    models,
+    packet::{self, event},
+}, TA_CON};
 
 #[derive(Debug, Default, Clone)]
 pub struct TAState {
@@ -17,7 +14,7 @@ pub struct TAState {
     pub players: Vec<models::User>,
     pub matches: Vec<models::Match>,
     pub servers: Vec<models::CoreServer>,
-    pub rts: HashMap<String, models::RealtimeScore>, // perhaps 
+    pub rts: HashMap<String, models::RealtimeScore>, // perhaps
 }
 
 impl TAState {
@@ -39,9 +36,25 @@ impl TAState {
                                         self.coordinators.push(user);
                                     }
                                     models::user::ClientTypes::Player => {
-                                        log::info!("Player added: {}", user.name);
-                                        self.players.push(user)
+                                        log::info!("Player added: {}", &user.name);
+                                        match sqlx::query!(
+                                            "SELECT * FROM users WHERE steam_id = $1",
+                                            &user.user_id
+                                        )
+                                        .fetch_optional(&*crate::DB_POOL.get().await)
+                                        .await
+                                        .unwrap()
+                                        {
+                                            Some(_) => {}
+                                            None => {
+                                                sqlx::query!("INSERT INTO users (steam_id, name) VALUES ($1, $2)", &user.user_id, &user.name)
+                                                        .execute(&*crate::DB_POOL.get().await)
+                                                        .await.unwrap();
+                                            }
+                                        }
+                                        self.players.push(user);
                                     }
+
                                     _ => {}
                                 }
                             }
@@ -103,9 +116,12 @@ impl TAState {
                             Some(mut r#match) => {
                                 log::info!("Match created: {}", r#match.guid);
                                 //add the overlay to the match's associated users.
-                                r#match
-                                    .associated_users
-                                    .extend(self.server_users.iter().map(|u| u.guid.clone()));
+                                r#match.associated_users.extend(
+                                    self.server_users
+                                        .iter()
+                                        .map(|u| u.guid.clone()),
+                                );
+                                log::warn!("users: {:#?}", r#match.associated_users);
 
                                 self.matches.push(r#match.clone());
 
@@ -254,18 +270,49 @@ impl TAState {
         match push.data {
             Some(data) => match data {
                 packet::push::Data::RealtimeScore(s) => {
-                    log::info!("Received RealtimeScore of {} for {}", &s.score, &s.user_guid);
+                    log::info!(
+                        "Received RealtimeScore of {} for {}",
+                        &s.score,
+                        &s.user_guid
+                    );
                     let user = self.players.iter().find(|u| u.guid == s.user_guid).unwrap();
-                    let _ = tokio::fs::create_dir_all(format!("./data/{}", &user.name)).await;
-                    let _ = tokio::fs::write(
-                        format!(
-                            "./data/{}/{}.dat",
-                            user.name,
-                            chrono::Utc::now().timestamp_millis()
-                        ),
-                        format!("{:#?}", &s),
+                    //
+                    let id = match sqlx::query!(
+                        "SELECT id FROM users WHERE steam_id = $1",
+                        user.user_id
                     )
-                    .await;
+                    .fetch_optional(&*crate::DB_POOL.get().await)
+                    .await
+                    .unwrap()
+                    {
+                        None => {
+                            sqlx::query!(
+                                "INSERT INTO users (steam_id, name) VALUES ($1, $2)",
+                                user.user_id,
+                                user.name
+                            )
+                            .execute(&*crate::DB_POOL.get().await)
+                            .await
+                            .unwrap();
+                            sqlx::query!("SELECT id FROM users WHERE steam_id = $1", user.user_id)
+                                .fetch_one(&*crate::DB_POOL.get().await)
+                                .await
+                                .unwrap()
+                                .id
+                        }
+                        Some(r) => r.id,
+                    };
+                    let right_hand = s.right_hand.clone().unwrap_or_default();
+                    let left_hand = s.left_hand.clone().unwrap_or_default();
+
+                    sqlx::query!("INSERT INTO real_time_score\
+                    (owner, score, score_with_modifiers, max_score, max_score_with_modifiers,\
+                    combo, player_health, accuracy, song_position, notes_missed, bad_cuts,\
+                    bomb_hits, wall_hits, max_combo, left_hand_hits, left_hand_misses,\
+                    left_hand_bad_cut, right_hand_hits, right_hand_misses, right_hand_bad_cut)\
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)", id, s.score, s.score_with_modifiers, s.max_score, s.max_score_with_modifiers, s.combo, s.player_health as f64, s.accuracy as f64, s.song_position as f64, s.notes_missed, s.bad_cuts, s.bomb_hits, s.wall_hits, s.max_combo, left_hand.hit, left_hand.miss, left_hand.bad_cut, right_hand.hit, right_hand.miss, right_hand.bad_cut)
+                        .execute(&*crate::DB_POOL.get().await)
+                        .await.unwrap();
 
                     self.rts.insert(s.user_guid.clone(), s);
                 }
@@ -288,7 +335,8 @@ impl TAState {
 }
 
 pub async fn route_packet(state: &mut TAState, packet: packet::Packet) -> anyhow::Result<()> {
-    log::debug!("Received packet: {:?}", packet.packet);
+    log::debug!("Received packet: {:#?}", packet.packet);
+    log::debug!("s_user {:#?}", state.server_users);
     match packet.packet {
         Some(packet::packet::Packet::Event(p)) => {
             state.process_event(p).await?;

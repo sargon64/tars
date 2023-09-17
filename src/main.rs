@@ -1,12 +1,17 @@
-use std::{convert::Infallible, sync::Arc, time::Duration};
+use async_once::AsyncOnce;
+use std::{str::FromStr, sync::Arc, time::Duration};
+// use parking_lot::RwLock;
 
 // use actix_cors::Cors;
 // use actix_web::{get, middleware::Logger, App, HttpServer, Responder, HttpResponse, Error, web::{self, Data}, http::header, HttpRequest};
 use carboxyl::Sink;
 use futures_util::{FutureExt, StreamExt};
-use gql::Schema;
+
 use juniper_graphql_ws::ConnectionConfig;
 use juniper_warp::subscriptions::serve_graphql_ws;
+use log::LevelFilter;
+use sqlx::migrate::Migrator;
+use sqlx::ConnectOptions;
 use text_to_ascii_art::convert;
 use tokio::sync::RwLock;
 use warp::Filter;
@@ -45,14 +50,23 @@ lazy_static::lazy_static! {
     pub static ref TA_STATE : RwLock<packets::TAState> = {
         RwLock::new(packets::TAState::new())
     };
-    pub static ref TA_CON: RwLock<Option<connection::TAConnection>> = {
-        RwLock::new(None)
-    };
+
+    pub static ref TA_CON: RwLock<Option<connection::TAConnection>> = RwLock::new(None);
 
     pub static ref TA_UPDATE_SINK: Sink<TAUpdates> = {
         Sink::new()
     };
+
+    pub static ref DB_POOL:  AsyncOnce<sqlx::Pool<sqlx::Postgres>> = AsyncOnce::new(async {
+                sqlx::postgres::PgPoolOptions::new()
+                    .max_connections(5)
+                    .connect_with(sqlx::postgres::PgConnectOptions::from_str(&std::env::var("DATABASE_URL").unwrap()).unwrap().log_statements(LevelFilter::Trace).log_slow_statements(LevelFilter::Info, Duration::from_secs(1)))
+                    .await
+                    .unwrap()
+    });
 }
+
+static MIGRATION: Migrator = sqlx::migrate!();
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
@@ -66,6 +80,11 @@ async fn main() -> anyhow::Result<()> {
         &env!("CARGO_PKG_AUTHORS").replace(":", " & ")
     );
 
+    MIGRATION
+        .run(&*DB_POOL.get().await)
+        .await
+        .expect("Failed to run migrations");
+
     std::thread::spawn(|| {
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -78,8 +97,8 @@ async fn main() -> anyhow::Result<()> {
                         std::env::var("TA_WS_URI").unwrap(),
                         "TA-Relay-TX",
                     )
-                    .await
-                    .unwrap(),
+                        .await
+                        .unwrap(),
                 );
                 let mut ta_con = connection::TAConnection::connect(
                     std::env::var("TA_WS_URI").unwrap(),
@@ -96,7 +115,8 @@ async fn main() -> anyhow::Result<()> {
                             continue;
                         }
                     };
-                    tokio::spawn(async {
+
+                    tokio::spawn(async move {
                         packets::route_packet(&mut *TA_STATE.write().await, msg)
                             .await
                             .unwrap();

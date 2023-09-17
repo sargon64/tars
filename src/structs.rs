@@ -6,6 +6,7 @@ use crate::packets::TAState;
 pub struct User {
     id: Uuid,
     name: String,
+    steam_id: String,
 }
 
 #[derive(juniper::GraphQLObject)]
@@ -60,7 +61,7 @@ pub struct GQLTAState {
 }
 
 impl TAState {
-    pub async fn into_gql(&self) -> GQLTAState {
+    pub async fn as_gql(&self) -> GQLTAState {
         GQLTAState {
             players: self
                 .players
@@ -68,6 +69,7 @@ impl TAState {
                 .map(|p| User {
                     id: Uuid::parse_str(&p.guid).unwrap(),
                     name: p.name.clone(),
+                    steam_id: p.user_id.clone(),
                 })
                 .collect(),
             coordinators: self
@@ -76,6 +78,7 @@ impl TAState {
                 .map(|p| User {
                     id: Uuid::parse_str(&p.guid).unwrap(),
                     name: p.name.clone(),
+                    steam_id: p.user_id.clone(),
                 })
                 .collect(),
             matches: self
@@ -87,13 +90,11 @@ impl TAState {
                         .associated_users
                         .iter()
                         .filter_map(|u| {
-                            self.players
-                                .iter()
-                                .find(|p| p.guid == *u)
-                                .map(|p| User {
-                                    id: Uuid::parse_str(&p.guid).unwrap(),
-                                    name: p.name.clone(),
-                                })
+                            self.players.iter().find(|p| p.guid == *u).map(|p| User {
+                                id: Uuid::parse_str(&p.guid).unwrap(),
+                                name: p.name.clone(),
+                                steam_id: p.user_id.clone(),
+                            })
                         })
                         .collect(),
                     coordinators: m
@@ -106,12 +107,13 @@ impl TAState {
                                 .map(|c| User {
                                     id: Uuid::parse_str(&c.guid).unwrap(),
                                     name: c.name.clone(),
+                                    steam_id: c.user_id.clone(),
                                 })
                         })
                         .collect(),
                     current_map: {
                         let level = m.selected_level.as_ref();
-                        if let Some(level) = level { 
+                        if let Some(level) = level {
                             Some(Map {
                                 id: level.level_id.clone(),
                                 name: level.name.clone(),
