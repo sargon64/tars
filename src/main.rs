@@ -7,6 +7,7 @@ use futures_util::{FutureExt, StreamExt};
 use gql::Schema;
 use juniper_graphql_ws::ConnectionConfig;
 use juniper_warp::subscriptions::serve_graphql_ws;
+use structs::GQLOverState;
 use text_to_ascii_art::convert;
 use tokio::sync::RwLock;
 use warp::Filter;
@@ -41,6 +42,14 @@ pub enum TAUpdates {
     None,
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+pub enum OverUpdates {
+    NewPage,
+
+    #[default]
+    None
+}
+
 lazy_static::lazy_static! {
     pub static ref TA_STATE : RwLock<packets::TAState> = {
         RwLock::new(packets::TAState::new())
@@ -48,8 +57,14 @@ lazy_static::lazy_static! {
     pub static ref TA_CON: RwLock<Option<connection::TAConnection>> = {
         RwLock::new(None)
     };
+    pub static ref OVER_STATE : RwLock<GQLOverState> = {
+        RwLock::new(GQLOverState::new())
+    };
 
     pub static ref TA_UPDATE_SINK: Sink<TAUpdates> = {
+        Sink::new()
+    };
+    pub static ref OVER_UPDATE_SINK: Sink<OverUpdates> = {
         Sink::new()
     };
 }

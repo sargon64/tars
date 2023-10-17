@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use uuid::Uuid;
 
 use crate::packets::TAState;
@@ -57,6 +59,57 @@ pub struct GQLTAState {
     pub coordinators: Vec<User>,
     pub players: Vec<User>,
     pub matches: Vec<Match>,
+}
+
+#[derive(juniper::GraphQLObject, Clone)]
+pub struct Page {
+    pub data: Vec<PageData>,
+    pub path: String
+}
+
+#[derive(juniper::GraphQLObject, Clone)]
+pub struct PageData {
+    pub key: String,
+    pub value: String
+}
+
+#[derive(juniper::GraphQLInputObject, Clone)]
+pub struct InputPage {
+    pub data: Vec<InputPageData>,
+    pub path: String
+}
+
+#[derive(juniper::GraphQLInputObject, Clone)]
+pub struct InputPageData {
+    pub key: String,
+    pub value: String
+}
+
+#[derive(juniper::GraphQLObject, Clone)]
+pub struct GQLOverState {
+    pub page: Page,
+}
+
+impl GQLOverState {
+    pub fn new() -> Self {
+        Self {
+            page: Page {
+                path: "/".to_string(),
+                data: vec![]
+            }
+        }
+    }
+}
+
+impl InputPage {
+    pub fn into_page(self) -> Page {
+        Page {
+            path: self.path,
+            data: self.data.into_iter().map(|f| PageData {
+                key: f.key, value: f.value}
+            ).collect()
+        }
+    }
 }
 
 impl TAState {
