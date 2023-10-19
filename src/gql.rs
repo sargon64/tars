@@ -4,7 +4,7 @@ use futures_util::Stream;
 use juniper::{GraphQLObject, RootNode, EmptyMutation, EmptySubscription, FieldError};
 use uuid::Uuid;
 
-use crate::{TA_STATE, structs::GQLTAState, TA_UPDATE_SINK, TAUpdates};
+use crate::{TA_STATE, structs::{GQLTAState, GQLOverState, Page, InputPage}, TA_UPDATE_SINK, TAUpdates, OVER_STATE, OVER_UPDATE_SINK, OverUpdates};
 
 pub struct Query;
 
@@ -13,11 +13,27 @@ impl Query {
     async fn state() ->  GQLTAState {
         (*TA_STATE.read().await).into_gql().await
     }
+
+    async fn page() -> GQLOverState {
+        (*OVER_STATE.read().await).clone()
+    }
+}
+
+pub struct Mutation;
+
+#[juniper::graphql_object(context = Context)]
+impl Mutation {
+    async fn update_page(page: InputPage) -> GQLOverState {
+        OVER_STATE.write().await.page = page.into_page();
+        OVER_UPDATE_SINK.send(OverUpdates::NewPage);
+        (*OVER_STATE.read().await).clone()
+    }
 }
 
 pub struct Subscription;
 
 type GQLTAStateStream = Pin<Box<dyn Stream<Item = Result<GQLTAState, FieldError>> + Send>>;
+type GQLOverStateStream = Pin<Box<dyn Stream<Item = Result<GQLOverState, FieldError>> + Send>>;
 
 #[juniper::graphql_subscription(context = Context)]
 impl Subscription {
@@ -30,6 +46,21 @@ impl Subscription {
                 match update {
                     TAUpdates::NewState => {
                         yield Ok((*TA_STATE.read().await).into_gql().await);
+                    },
+                    _ => {}
+                }
+            }
+        }.boxed()
+    }
+
+    async fn page() -> GQLOverStateStream {
+        let mut stream = OVER_UPDATE_SINK.stream().events();
+
+        async_stream::stream! {
+            while let Some(update) = stream.next() {
+                match update {
+                    OverUpdates::NewPage => {
+                        yield Ok((*OVER_STATE.read().await).clone());
                     },
                     _ => {}
                 }
