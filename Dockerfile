@@ -2,7 +2,7 @@ FROM rust:alpine as builder
 ENV RUSTFLAGS="-C target-feature=-crt-static"
 
 # install musl-dev to build static binaries
-RUN apk add --no-cache musl-dev
+RUN apk add --no-cache musl-dev protobuf
 
 # copy the source code
 WORKDIR /app
