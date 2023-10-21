@@ -76,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
     // show a pretty ascii banner
     log::info!(
         "{} v{}\n Created by {}",
-        convert("TA-Relay-rs".to_string()).unwrap(),
+        convert("TARS".to_string()).unwrap(),
         env!("CARGO_PKG_VERSION"),
         &env!("CARGO_PKG_AUTHORS").replace(":", " & ")
     );

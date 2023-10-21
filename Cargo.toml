@@ -1,5 +1,5 @@
 [package]
-name = "ta-relay-rs"
+name = "tars"
 version = "0.1.0"
 edition = "2021"
 authors = ["sargon64 <niko@mail.velvet.moe>", "skkeye <[email protected]>"]
