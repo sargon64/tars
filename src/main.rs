@@ -151,6 +151,21 @@ async fn main() -> anyhow::Result<()> {
     let log = warp::log("ta_relay_rs");
     let root_node = Arc::new(create_schema());
 
+    let cors = warp::cors()
+        .allow_any_origin()
+        .allow_methods(vec!["POST", "GET"])
+        .allow_headers(vec![
+            "User-Agent",
+            "Sec-Fetch-Mode",
+            "Referer",
+            "Origin",
+            "Access-Control-Request-Method",
+            "Access-Control-Request-Headers",
+            "Sec-WebSocket-Protocol"
+        ])
+        .allow_credentials(true)
+        .max_age(3600);
+
     warp::serve(
         warp::get()
             .and(warp::path("graphiql").and(juniper_warp::graphiql_filter("/graphql", None)))
