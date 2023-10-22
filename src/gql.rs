@@ -71,8 +71,8 @@ pub struct Context {}
 
 impl juniper::Context for Context {}
 
-pub type Schema = RootNode<'static, Query, EmptyMutation<Context>, Subscription>;
+pub type Schema = RootNode<'static, Query, Mutation, Subscription>;
 
 pub fn create_schema() -> Schema {
-    Schema::new(Query {}, EmptyMutation::new(), Subscription {})
+    Schema::new(Query {}, Mutation {}, Subscription {})
 }
