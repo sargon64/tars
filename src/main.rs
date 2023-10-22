@@ -1,10 +1,9 @@
-use std::{convert::Infallible, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 // use actix_cors::Cors;
 // use actix_web::{get, middleware::Logger, App, HttpServer, Responder, HttpResponse, Error, web::{self, Data}, http::header, HttpRequest};
 use carboxyl::Sink;
 use futures_util::{FutureExt, StreamExt};
-use gql::Schema;
 use juniper_graphql_ws::ConnectionConfig;
 use juniper_warp::subscriptions::serve_graphql_ws;
 use structs::GQLOverState;
@@ -18,7 +17,6 @@ pub mod connection;
 pub mod gql;
 pub mod packets;
 pub mod structs;
-
 #[allow(non_snake_case)]
 pub mod proto {
     pub mod discord {

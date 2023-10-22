@@ -1679,7 +1679,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ta-relay-rs"
+name = "tars"
 version = "0.1.0"
 dependencies = [
  "anyhow",

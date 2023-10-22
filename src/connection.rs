@@ -1,13 +1,8 @@
-use std::sync::Arc;
-
-use futures_util::{stream::{SplitStream, SplitSink}, StreamExt, SinkExt, AsyncRead, Stream};
-use log::info;
+use futures_util::{stream::{SplitStream, SplitSink}, StreamExt, SinkExt, Stream};
 use prost::Message as _;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{WebSocketStream, MaybeTlsStream, tungstenite::Message};
-use uuid::Uuid;
-
-use crate::{proto::{models, packet}, packets::TAState};
+use crate::{proto::{models, packet}};
 
 #[derive(Debug)]
 pub struct TAConnection {

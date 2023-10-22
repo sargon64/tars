@@ -1,10 +1,8 @@
 use std::pin::Pin;
 
 use futures_util::Stream;
-use juniper::{GraphQLObject, RootNode, EmptyMutation, EmptySubscription, FieldError};
-use uuid::Uuid;
-
-use crate::{TA_STATE, structs::{GQLTAState, GQLOverState, Page, InputPage}, TA_UPDATE_SINK, TAUpdates, OVER_STATE, OVER_UPDATE_SINK, OverUpdates};
+use juniper::{RootNode, EmptyMutation, FieldError};
+use crate::{TA_STATE, structs::{GQLTAState, GQLOverState, InputPage}, TA_UPDATE_SINK, TAUpdates, OVER_STATE, OVER_UPDATE_SINK, OverUpdates};
 
 pub struct Query;
 
