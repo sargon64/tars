@@ -1,4 +1,4 @@
-# TA-RELAY-RS
+# TARS
 This is an *experimental* graphql based ta relay server.
 It allows for both a polling approach (with normal graphql), and a event based approach (with graphql subscriptions).
 
