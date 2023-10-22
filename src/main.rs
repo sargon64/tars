@@ -191,7 +191,8 @@ async fn main() -> anyhow::Result<()> {
                     warp::reply::with_header(reply, "Sec-WebSocket-Protocol", "graphql-ws")
                 }))
             .or(warp::path("graphql").and(graphql_filter))
-            .with(log),
+            .with(log)
+            .with(cors)
     )
     .run(([0, 0, 0, 0], 8080))
     .await;
