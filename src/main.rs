@@ -91,15 +91,15 @@ async fn main() -> anyhow::Result<()> {
                         std::env::var("TA_WS_URI").unwrap(),
                         "TA-Relay-TX",
                     )
-                    .await
-                    .unwrap(),
+                        .await
+                        .unwrap(),
                 );
                 let mut ta_con = connection::TAConnection::connect(
                     std::env::var("TA_WS_URI").unwrap(),
                     "TA-Relay-RX",
                 )
-                .await
-                .unwrap();
+                    .await
+                    .unwrap();
 
                 while let Some(msg) = ta_con.next().await {
                     let msg = match msg {
@@ -153,12 +153,13 @@ async fn main() -> anyhow::Result<()> {
 
     let cors = warp::cors()
         .allow_any_origin()
-        .allow_methods(vec!["POST", "GET"])
+        .allow_methods(vec!["POST", "GET", "OPTIONS"])
         .allow_headers(vec![
             "User-Agent",
             "Sec-Fetch-Mode",
             "Referer",
             "Origin",
+            "Content-Type",
             "Access-Control-Request-Method",
             "Access-Control-Request-Headers",
             "Sec-WebSocket-Protocol"
@@ -189,16 +190,19 @@ async fn main() -> anyhow::Result<()> {
                 .map(|reply| {
                     // this is todo in the example, but it's required for the magic websocket magic to work!
                     warp::reply::with_header(reply, "Sec-WebSocket-Protocol", "graphql-ws")
-                }))
+                })
+                .map(|reply| {
+                    warp::reply::with_header(reply, "Access-Control-Allow-Origin", "*")
+                })
+            )
             .or(warp::path("graphql").and(graphql_filter))
             .with(log)
             .with(cors)
     )
-    .run(([0, 0, 0, 0], 8080))
-    .await;
+        .run(([0, 0, 0, 0], 8080))
+        .await;
     Ok(())
 }
-
 // #[get("/")]
 // async fn index() -> impl Responder {
 //     ""
