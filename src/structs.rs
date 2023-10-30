@@ -6,6 +6,36 @@ use crate::packets::TAState;
 pub struct User {
     id: Uuid,
     name: String,
+    play_state: PlayState,
+    download_state: DownloadState,
+    team: Option<Team>,
+    mod_list: Vec<String>,
+    stream_delay_ms: i32,
+    stream_sync_start_ms: i32,
+}
+
+#[repr(i32)]
+#[derive(juniper::GraphQLEnum, Default)]
+pub enum PlayState {
+    #[default]
+    Waiting = 0,
+    InGame = 1
+}
+
+#[repr(i32)]
+#[derive(juniper::GraphQLEnum, Default)]
+pub enum DownloadState {
+    #[default]
+    None = 0,
+    Downloading = 1,
+    Downloaded = 2,
+    DownloadError = 3
+}
+
+#[derive(juniper::GraphQLObject, Default)]
+pub struct Team {
+    id: Uuid,
+    name: String,
 }
 
 #[derive(juniper::GraphQLObject)]
@@ -14,8 +44,7 @@ pub struct Match {
     players: Vec<User>,
     coordinators: Vec<User>,
     current_map: Option<Map>,
-    scores: Vec<Score>,
-    // match_score: Score,
+    scores: Vec<Score>
 }
 
 #[derive(juniper::GraphQLObject)]
@@ -119,6 +148,15 @@ impl TAState {
                 .map(|p| User {
                     id: Uuid::parse_str(&p.guid).unwrap(),
                     name: p.name.clone(),
+                    play_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::PlayState>(&p.play_state) },
+                    download_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::DownloadState>(&p.download_state) },
+                    team: p.team.as_ref().map(|t| Team {
+                        id: Uuid::parse_str(&t.id).unwrap(),
+                        name: t.name.clone(),
+                    }),
+                    mod_list: p.mod_list.clone(),
+                    stream_delay_ms: p.stream_delay_ms as i32,
+                    stream_sync_start_ms: p.stream_sync_start_ms as i32,
                 })
                 .collect(),
             coordinators: self
@@ -127,6 +165,15 @@ impl TAState {
                 .map(|p| User {
                     id: Uuid::parse_str(&p.guid).unwrap(),
                     name: p.name.clone(),
+                    play_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::PlayState>(&p.play_state) },
+                    download_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::DownloadState>(&p.download_state) },
+                    team: p.team.as_ref().map(|t| Team {
+                        id: Uuid::parse_str(&t.id).unwrap(),
+                        name: t.name.clone(),
+                    }),
+                    mod_list: p.mod_list.clone(),
+                    stream_delay_ms: p.stream_delay_ms as i32,
+                    stream_sync_start_ms: p.stream_sync_start_ms as i32,
                 })
                 .collect(),
             matches: self
@@ -144,6 +191,15 @@ impl TAState {
                                 .map(|p| User {
                                     id: Uuid::parse_str(&p.guid).unwrap(),
                                     name: p.name.clone(),
+                                    play_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::PlayState>(&p.play_state) },
+                                    download_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::DownloadState>(&p.download_state) },
+                                    team: p.team.as_ref().map(|t| Team {
+                                        id: Uuid::parse_str(&t.id).unwrap(),
+                                        name: t.name.clone(),
+                                    }),
+                                    mod_list: p.mod_list.clone(),
+                                    stream_delay_ms: p.stream_delay_ms as i32,
+                                    stream_sync_start_ms: p.stream_sync_start_ms as i32,
                                 })
                         })
                         .collect(),
@@ -157,6 +213,15 @@ impl TAState {
                                 .map(|c| User {
                                     id: Uuid::parse_str(&c.guid).unwrap(),
                                     name: c.name.clone(),
+                                    play_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::PlayState>(&c.play_state) },
+                                    download_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::DownloadState>(&c.download_state) },
+                                    team: c.team.as_ref().map(|t| Team {
+                                        id: Uuid::parse_str(&t.id).unwrap(),
+                                        name: t.name.clone(),
+                                    }),
+                                    mod_list: c.mod_list.clone(),
+                                    stream_delay_ms: c.stream_delay_ms as i32,
+                                    stream_sync_start_ms: c.stream_sync_start_ms as i32,
                                 })
                         })
                         .collect(),
