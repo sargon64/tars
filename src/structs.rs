@@ -6,6 +6,7 @@ use crate::packets::TAState;
 pub struct User {
     id: Uuid,
     name: String,
+    user_id: String,
     play_state: PlayState,
     download_state: DownloadState,
     team: Option<Team>,
@@ -147,6 +148,7 @@ impl TAState {
                 .iter()
                 .map(|p| User {
                     id: Uuid::parse_str(&p.guid).unwrap(),
+                    user_id: p.user_id.clone(),
                     name: p.name.clone(),
                     play_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::PlayState>(&p.play_state) },
                     download_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::DownloadState>(&p.download_state) },
@@ -165,6 +167,7 @@ impl TAState {
                 .map(|p| User {
                     id: Uuid::parse_str(&p.guid).unwrap(),
                     name: p.name.clone(),
+                    user_id: p.user_id.clone(),
                     play_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::PlayState>(&p.play_state) },
                     download_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::DownloadState>(&p.download_state) },
                     team: p.team.as_ref().map(|t| Team {
@@ -191,6 +194,7 @@ impl TAState {
                                 .map(|p| User {
                                     id: Uuid::parse_str(&p.guid).unwrap(),
                                     name: p.name.clone(),
+                                    user_id: p.user_id.clone(),
                                     play_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::PlayState>(&p.play_state) },
                                     download_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::DownloadState>(&p.download_state) },
                                     team: p.team.as_ref().map(|t| Team {
@@ -213,6 +217,7 @@ impl TAState {
                                 .map(|c| User {
                                     id: Uuid::parse_str(&c.guid).unwrap(),
                                     name: c.name.clone(),
+                                    user_id: c.user_id.clone(),
                                     play_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::PlayState>(&c.play_state) },
                                     download_state: unsafe { std::mem::transmute_copy::<i32, crate::structs::DownloadState>(&c.download_state) },
                                     team: c.team.as_ref().map(|t| Team {
