@@ -51,6 +51,8 @@ impl Subscription {
         }.boxed()
     }
 
+    // async fn player_score(player: Uuid) 
+
     async fn page() -> GQLOverStateStream {
         let mut stream = OVER_UPDATE_SINK.stream().events();
 

@@ -43,6 +43,7 @@ pub struct Team {
 pub struct Match {
     id: Uuid,
     players: Vec<User>,
+    teams: Vec<Team>,
     coordinators: Vec<User>,
     current_map: Option<Map>,
     scores: Vec<Score>
@@ -207,6 +208,19 @@ impl TAState {
                                 })
                         })
                         .collect(),
+                    teams: m
+                        .associated_users
+                        .iter()
+                        .filter_map(|u| {
+                            self.players
+                                .iter()
+                                .find(|p| p.guid == *u)
+                                .map(|p| p.team.as_ref().map(|t| Team {
+                                    id: Uuid::parse_str(&t.id).unwrap(),
+                                    name: t.name.clone(),
+                                }))
+                                .flatten()
+                        }).collect(),
                     coordinators: m
                         .associated_users
                         .iter()
