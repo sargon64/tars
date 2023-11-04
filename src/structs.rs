@@ -1,3 +1,4 @@
+use tap::Tap;
 use uuid::Uuid;
 
 use crate::packets::TAState;
@@ -33,7 +34,7 @@ pub enum DownloadState {
     DownloadError = 3
 }
 
-#[derive(juniper::GraphQLObject, Default)]
+#[derive(juniper::GraphQLObject, Default, Eq, PartialEq, Ord, PartialOrd, Clone)]
 pub struct Team {
     id: Uuid,
     name: String,
@@ -220,7 +221,7 @@ impl TAState {
                                     name: t.name.clone(),
                                 }))
                                 .flatten()
-                        }).collect(),
+                        }).collect::<Vec<_>>().tap_mut(|v| v.sort()).tap_mut(|v| v.dedup()),
                     coordinators: m
                         .associated_users
                         .iter()
