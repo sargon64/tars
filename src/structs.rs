@@ -94,6 +94,7 @@ pub struct GQLTAState {
 pub struct Page {
     pub data: Vec<PageData>,
     pub path: String,
+    pub pathName: String,
 }
 
 #[derive(juniper::GraphQLObject, Clone)]
@@ -106,6 +107,7 @@ pub struct PageData {
 pub struct InputPage {
     pub data: Vec<InputPageData>,
     pub path: String,
+    pub pathName: String,
 }
 
 #[derive(juniper::GraphQLInputObject, Clone)]
@@ -125,6 +127,7 @@ impl GQLOverState {
             page: Page {
                 path: "/".to_string(),
                 data: vec![],
+                pathName: "root".to_string(),
             },
         }
     }
@@ -142,6 +145,7 @@ impl InputPage {
                     value: f.value,
                 })
                 .collect(),
+            pathName: self.pathName,
         }
     }
 }
