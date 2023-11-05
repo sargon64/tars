@@ -79,13 +79,7 @@ async fn main() -> anyhow::Result<()> {
         &env!("CARGO_PKG_AUTHORS").replace(":", " & ")
     );
 
-    std::thread::spawn(|| {
-        tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap()
-            .block_on(async {
-                log::info!("Connecting to Server...");
+    log::info!("Connecting to Server...");
                 *TA_CON.write().await = Some(
                     connection::TAConnection::connect(
                         std::env::var("TA_WS_URI").unwrap(),
@@ -101,6 +95,12 @@ async fn main() -> anyhow::Result<()> {
                     .await
                     .unwrap();
 
+    std::thread::spawn(move || {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async move {
                 while let Some(msg) = ta_con.next().await {
                     let msg = match msg {
                         Ok(msg) => msg,
@@ -120,31 +120,6 @@ async fn main() -> anyhow::Result<()> {
             });
     });
 
-    // HttpServer::new(||
-    //     App::new()
-    //         .app_data(Data::new(create_schema()))
-    //         .service(index)
-    //         .service(
-    //             web::resource("/graphql")
-    //                 .route(web::post().to(graphql_route))
-    //                 .route(web::get().to(graphql_route)),
-    //         )
-    //         .service(web::resource("/graphiql").route(web::get().to(graphiql_route)))
-    //         .service(web::resource("/playground").route(web::get().to(playground_route)))
-    //         .wrap(
-    //             Cors::default()
-    //                 .allow_any_origin()
-    //                 .allowed_methods(vec!["POST", "GET"])
-    //                 .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT])
-    //                 .allowed_header(header::CONTENT_TYPE)
-    //                 .supports_credentials()
-    //                 .max_age(3600),
-    //         )
-    //         .wrap(Logger::default())
-    //     )
-    //     .bind(("0.0.0.0", 8080))?
-    //     .run()
-    //     .await?;
     let state = warp::any().map(move || Context {});
 
     let graphql_filter = juniper_warp::make_graphql_filter(create_schema(), state.boxed());

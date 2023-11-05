@@ -2,18 +2,23 @@ use std::pin::Pin;
 
 use futures_util::Stream;
 use juniper::{RootNode, EmptyMutation, FieldError};
-use crate::{TA_STATE, structs::{GQLTAState, GQLOverState, InputPage}, TA_UPDATE_SINK, TAUpdates, OVER_STATE, OVER_UPDATE_SINK, OverUpdates};
+use uuid::Uuid;
+use crate::{TA_STATE, structs::{GQLTAState, GQLOverState, InputPage, Match}, TA_UPDATE_SINK, TAUpdates, OVER_STATE, OVER_UPDATE_SINK, OverUpdates};
 
 pub struct Query;
 
 #[juniper::graphql_object(context = Context)]
 impl Query {
     async fn state() ->  GQLTAState {
-        (*TA_STATE.read().await).into_gql().await
+        TA_STATE.read().await.into_gql().await
+    }
+
+    async fn match_by_id(id: Uuid) -> Option<Match> {
+        TA_STATE.read().await.get_single_match_gql(id).await
     }
 
     async fn page() -> GQLOverState {
-        (*OVER_STATE.read().await).clone()
+        OVER_STATE.read().await.clone()
     }
 }
 
@@ -24,7 +29,7 @@ impl Mutation {
     async fn update_page(page: InputPage) -> GQLOverState {
         OVER_STATE.write().await.page = page.into_page();
         OVER_UPDATE_SINK.send(OverUpdates::NewPage);
-        (*OVER_STATE.read().await).clone()
+        OVER_STATE.read().await.clone()
     }
 }
 
@@ -43,7 +48,7 @@ impl Subscription {
             while let Some(update) = stream.next() {
                 match update {
                     TAUpdates::NewState => {
-                        yield Ok((*TA_STATE.read().await).into_gql().await);
+                        yield Ok(TA_STATE.read().await.into_gql().await);
                     },
                     _ => {}
                 }
