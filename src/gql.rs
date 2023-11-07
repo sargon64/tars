@@ -1,7 +1,7 @@
 use std::pin::Pin;
 
 use futures_util::Stream;
-use juniper::{RootNode, EmptyMutation, FieldError};
+use juniper::{RootNode, EmptyMutation, FieldError, EmptySubscription};
 use uuid::Uuid;
 use crate::{TA_STATE, structs::{GQLTAState, GQLOverState, InputPage, Match}, TA_UPDATE_SINK, TAUpdates, OVER_STATE, OVER_UPDATE_SINK, OverUpdates};
 
@@ -44,7 +44,7 @@ impl Subscription {
         let mut stream = TA_UPDATE_SINK.stream().events();
 
         // magic macro :)
-        async_stream::stream! {            
+        async_stream::stream! {
             while let Some(update) = stream.next() {
                 match update {
                     TAUpdates::NewState => {
@@ -65,7 +65,7 @@ impl Subscription {
             while let Some(update) = stream.next() {
                 match update {
                     OverUpdates::NewPage => {
-                        yield Ok((*OVER_STATE.read().await).clone());
+                        yield Ok(OVER_STATE.read().await.clone());
                     },
                     _ => {}
                 }
@@ -78,8 +78,8 @@ pub struct Context {}
 
 impl juniper::Context for Context {}
 
-pub type Schema = RootNode<'static, Query, Mutation, Subscription>;
+pub type Schema = RootNode<'static, Query, Mutation, EmptySubscription<Context>>;
 
 pub fn create_schema() -> Schema {
-    Schema::new(Query {}, Mutation {}, Subscription {})
+    Schema::new(Query {}, Mutation {}, EmptySubscription::new())
 }
