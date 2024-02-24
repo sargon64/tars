@@ -11,7 +11,10 @@ authors = ["sargon64 <niko@mail.velvet.moe>", "skkeye <[email protected]>"]
 # actix-web = "4.3.1"
 # actix-web-actors = "4.2.0"
 anyhow = "1.0.74"
+async-graphql = { version = "7.0.2", features = ["uuid", "chrono", "playground", "tracing"] }
+async-graphql-poem = "7.0.2"
 async-stream = "0.3.5"
+async-trait = "0.1.77"
 carboxyl = "0.2.2"
 chrono = "0.4.26"
 crossbeam-channel = "0.5.8"
@@ -19,13 +22,14 @@ dotenv = "0.15.0"
 env_logger = "0.10.0"
 futures = "0.3.28"
 futures-util = "0.3.28"
-juniper = "0.15.11"
+# juniper = "0.15.11"
 # juniper_actix = { version = "0.4.0", features = ["subscriptions"] }
-juniper_graphql_ws = "0.3.0"
-juniper_subscriptions = "0.16.0"
-juniper_warp = { version = "0.7.0", features = ["subscriptions"] }
+# juniper_graphql_ws = "0.3.0"
+# juniper_subscriptions = "0.16.0"
+# juniper_warp = { version = "0.7.0", features = ["subscriptions"] }
 lazy_static = "1.4.0"
 log = "0.4.20"
+poem = "2.0.0"
 prost = "0.11.9"
 prost-types = "0.11.9"
 serde = { version = "1.0.183", features = ["derive"] }
@@ -36,8 +40,8 @@ tokio = { version = "1.31.0", features = ["full"] }
 tokio-tungstenite = { version = "0.20.0", features = [
     "rustls-tls-native-roots"
 ] }
-uuid = { version = "0.8", features = ["serde", "v4"] }
-warp = { version = "0.3.5", features = ["tokio-rustls"] }
+uuid = { version = "1.7", features = ["serde", "v4"] }
+# warp = { version = "0.3.5", features = ["tokio-rustls"] }
 
 [build-dependencies]
 prost-build = "0.11.9"

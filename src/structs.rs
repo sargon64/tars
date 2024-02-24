@@ -1,9 +1,10 @@
+use async_graphql::{Enum, InputObject, SimpleObject};
 use tap::Tap;
 use uuid::Uuid;
 
 use crate::packets::TAState;
 
-#[derive(juniper::GraphQLObject, Default)]
+#[derive(SimpleObject, Default)]
 pub struct User {
     guid: Uuid,
     name: String,
@@ -17,7 +18,7 @@ pub struct User {
 }
 
 #[repr(i32)]
-#[derive(juniper::GraphQLEnum, Default)]
+#[derive(Enum, Default, Clone, Copy, Eq, PartialEq)]
 pub enum PlayState {
     #[default]
     Waiting = 0,
@@ -25,7 +26,7 @@ pub enum PlayState {
 }
 
 #[repr(i32)]
-#[derive(juniper::GraphQLEnum, Default)]
+#[derive(Enum, Default, Clone, Copy, Eq, PartialEq)]
 pub enum DownloadState {
     #[default]
     None = 0,
@@ -34,13 +35,13 @@ pub enum DownloadState {
     DownloadError = 3,
 }
 
-#[derive(juniper::GraphQLObject, Default, Eq, PartialEq, Ord, PartialOrd, Clone)]
+#[derive(SimpleObject, Default, Eq, PartialEq, Ord, PartialOrd, Clone)]
 pub struct Team {
     guid: Uuid,
     name: String,
 }
 
-#[derive(juniper::GraphQLObject)]
+#[derive(SimpleObject)]
 pub struct Match {
     guid: Uuid,
     players: Vec<User>,
@@ -50,7 +51,7 @@ pub struct Match {
     scores: Vec<Score>,
 }
 
-#[derive(juniper::GraphQLObject)]
+#[derive(SimpleObject)]
 pub struct Map {
     hash: String,
     name: String,
@@ -58,7 +59,7 @@ pub struct Map {
     modifiers: Vec<String>,
 }
 
-#[derive(juniper::GraphQLObject)]
+#[derive(SimpleObject)]
 pub struct Score {
     owner_guid: Uuid,
 
@@ -83,51 +84,51 @@ pub struct Score {
     right_hand_bad_cut: i32,
 }
 
-#[derive(juniper::GraphQLObject)]
+#[derive(SimpleObject)]
 pub struct GQLTAState {
     pub coordinators: Vec<User>,
     pub players: Vec<User>,
     pub matches: Vec<Match>,
 }
 
-#[derive(juniper::GraphQLObject, Clone)]
+#[derive(SimpleObject, Clone)]
 pub struct Page {
     pub data: Vec<PageData>,
     pub path: String,
-    pub pathName: String,
+    pub path_name: String,
 }
 
-#[derive(juniper::GraphQLObject, Clone)]
+#[derive(SimpleObject, Clone)]
 pub struct PageData {
     pub key: String,
     pub value: String,
 }
 
-#[derive(juniper::GraphQLInputObject, Clone)]
+#[derive(InputObject, Clone)]
 pub struct InputPage {
     pub data: Vec<InputPageData>,
     pub path: String,
-    pub pathName: String,
+    pub path_name: String,
 }
 
-#[derive(juniper::GraphQLInputObject, Clone)]
+#[derive(InputObject, Clone)]
 pub struct InputPageData {
     pub key: String,
     pub value: String,
 }
 
-#[derive(juniper::GraphQLObject, Clone)]
+#[derive(SimpleObject, Clone)]
 pub struct GQLOverState {
     pub page: Page,
 }
 
-impl GQLOverState {
-    pub fn new() -> Self {
+impl Default for GQLOverState {
+    fn default() -> Self {
         Self {
             page: Page {
                 path: "/".to_string(),
                 data: vec![],
-                pathName: "root".to_string(),
+                path_name: "root".to_string(),
             },
         }
     }
@@ -145,7 +146,7 @@ impl InputPage {
                     value: f.value,
                 })
                 .collect(),
-            pathName: self.pathName,
+            path_name: self.path_name,
         }
     }
 }
@@ -193,13 +194,12 @@ impl TAState {
                     self.players
                         .iter()
                         .find(|p| p.guid == *u)
-                        .map(|p| {
+                        .and_then(|p| {
                             p.team.as_ref().map(|t| Team {
                                 guid: Uuid::parse_str(&t.id).unwrap(),
                                 name: t.name.clone(),
                             })
                         })
-                        .flatten()
                 })
                 .collect::<Vec<_>>()
                 .tap_mut(|v| v.sort())
@@ -238,12 +238,11 @@ impl TAState {
             current_map: {
                 let level: Option<&crate::proto::models::PreviewBeatmapLevel> =
                     match_.selected_level.as_ref();
-                if let Some(level) = level {
-                    Some(Map {
+                level.map(|level| Map {
                         hash: level
                             .level_id
                             .clone()
-                            .split("_")
+                            .split('_')
                             .last()
                             .unwrap()
                             .to_string(),
@@ -251,9 +250,6 @@ impl TAState {
                         difficulty: match_.selected_difficulty,
                         modifiers: vec![],
                     })
-                } else {
-                    None
-                }
             },
             scores: {
                 match_
@@ -389,13 +385,12 @@ impl TAState {
                             self.players
                                 .iter()
                                 .find(|p| p.guid == *u)
-                                .map(|p| {
+                                .and_then(|p| {
                                     p.team.as_ref().map(|t| Team {
                                         guid: Uuid::parse_str(&t.id).unwrap(),
                                         name: t.name.clone(),
                                     })
                                 })
-                                .flatten()
                         })
                         .collect::<Vec<_>>()
                         .tap_mut(|v| v.sort())
@@ -439,12 +434,11 @@ impl TAState {
                         .collect(),
                     current_map: {
                         let level = m.selected_level.as_ref();
-                        if let Some(level) = level {
-                            Some(Map {
+                        level.map(|level| Map {
                                 hash: level
                                     .level_id
                                     .clone()
-                                    .split("_")
+                                    .split('_')
                                     .last()
                                     .unwrap()
                                     .to_string(),
@@ -452,9 +446,6 @@ impl TAState {
                                 difficulty: m.selected_difficulty,
                                 modifiers: vec![],
                             })
-                        } else {
-                            None
-                        }
                     },
                     scores: m
                         .associated_users

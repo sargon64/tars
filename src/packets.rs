@@ -26,8 +26,7 @@ impl TAState {
     }
 
     pub async fn process_event(&mut self, event: packet::Event) -> anyhow::Result<()> {
-        match event.changed_object {
-            Some(obj) => {
+        if let Some(obj) = event.changed_object {
                 match obj {
                     event::ChangedObject::UserAddedEvent(e) => {
                         match e.user {
@@ -188,9 +187,7 @@ impl TAState {
                         }
                     },
                 }
-            }
-            None => {}
-        }
+            };
         Ok(())
     }
 
