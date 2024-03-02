@@ -1,20 +1,24 @@
+use async_graphql::{Context, Object};
 
-
-use async_graphql::{Object, Context};
-
-
+use crate::{
+    structs::{GQLTAState, Match},
+    TA_STATE,
+};
 use uuid::Uuid;
-use crate::{TA_STATE, structs::{GQLTAState, Match}};
 
 pub struct Query;
 
 #[Object]
 impl Query {
-    async fn state<'ctx>(&self, _ctx: &Context<'ctx>) ->  anyhow::Result<GQLTAState> {
+    async fn state<'ctx>(&self, _ctx: &Context<'ctx>) -> anyhow::Result<GQLTAState> {
         TA_STATE.read().await.into_gql().await
     }
 
-    async fn match_by_id<'ctx>(&self, _ctx: &Context<'ctx>, id: Uuid) -> anyhow::Result<Option<Match>> {
+    async fn match_by_id<'ctx>(
+        &self,
+        _ctx: &Context<'ctx>,
+        id: Uuid,
+    ) -> anyhow::Result<Option<Match>> {
         TA_STATE.read().await.get_single_match_gql(id).await
     }
 
@@ -57,7 +61,7 @@ impl Query {
 //         }.boxed()
 //     }
 
-//     // async fn player_score(player: Uuid) 
+//     // async fn player_score(player: Uuid)
 
 //     async fn page() -> GQLOverStateStream {
 //         let mut stream = OVER_UPDATE_SINK.stream().events();

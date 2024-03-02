@@ -1,14 +1,20 @@
-#![allow(clippy::option_map_unit_fn)]
+#![allow(clippy::option_map_unit_fn, clippy::module_inception)]
 #![forbid(clippy::unwrap_used)]
 
-use async_graphql::{http::{playground_source, GraphQLPlaygroundConfig, GraphiQLSource}, EmptyMutation, EmptySubscription, Schema};
+use async_graphql::{
+    http::{playground_source, GraphQLPlaygroundConfig, GraphiQLSource},
+    EmptyMutation, EmptySubscription, Schema,
+};
 use async_graphql_poem::GraphQL;
 // use actix_cors::Cors;
 // use actix_web::{get, middleware::Logger, App, HttpServer, Responder, HttpResponse, Error, web::{self, Data}, http::header, HttpRequest};
 use carboxyl::Sink;
 use futures_util::StreamExt;
+use poem::{
+    get, handler, http::StatusCode, listener::TcpListener, EndpointExt, IntoResponse, Response,
+    Route,
+};
 use tracing::{debug, error, info, warn};
-use poem::{get, handler, http::StatusCode, listener::TcpListener, EndpointExt, IntoResponse, Response, Route};
 // use juniper_graphql_ws::ConnectionConfig;
 // use juniper_warp::subscriptions::serve_graphql_ws;
 use structs::GQLOverState;
@@ -126,15 +132,19 @@ async fn main() -> anyhow::Result<()> {
     //         },
     //     },
     // );
-    let mut ta_con =
-        match connection::TAConnection::connect(std::env::var("TA_WS_URI").expect("passed safety checks, should not fail"),"TA-Relay-RX").await {
-            Ok(con) => con,
-            Err(e) => {
-                error!("Failed to connect to server (rx). Check your websocket uri.");
-                debug!("Error: {}", e);
-                std::process::exit(1);
-            },
-        };
+    let mut ta_con = match connection::TAConnection::connect(
+        std::env::var("TA_WS_URI").expect("passed safety checks, should not fail"),
+        "TA-Relay-RX",
+    )
+    .await
+    {
+        Ok(con) => con,
+        Err(e) => {
+            error!("Failed to connect to server (rx). Check your websocket uri.");
+            debug!("Error: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     std::thread::spawn(move || {
         tokio::runtime::Builder::new_multi_thread()
@@ -151,12 +161,13 @@ async fn main() -> anyhow::Result<()> {
                         }
                     };
                     tokio::spawn(async move {
-                        match packets::route_packet(&mut *TA_STATE.write().await,msg.clone()).await {
-                            Ok(_) => {},
+                        match packets::route_packet(&mut *TA_STATE.write().await, msg.clone()).await
+                        {
+                            Ok(_) => {}
                             Err(e) => {
                                 warn!("Error routing packet. {:#?}", msg);
                                 debug!("Error: {}", e);
-                            },
+                            }
                         };
 
                         TA_UPDATE_SINK.send(TAUpdates::NewState);
@@ -165,8 +176,7 @@ async fn main() -> anyhow::Result<()> {
             });
     });
 
-    let schema = Schema::build(Query, EmptyMutation, EmptySubscription)
-        .finish();
+    let schema = Schema::build(Query, EmptyMutation, EmptySubscription).finish();
 
     let app = Route::new()
         .at(
@@ -179,7 +189,7 @@ async fn main() -> anyhow::Result<()> {
         .at("/playground", playground_route)
         .with(poem::middleware::Tracing)
         .with(poem::middleware::SetHeader::new().appending("Access-Control-Allow-Origin", "*"));
-    
+
     poem::Server::new(TcpListener::bind("0.0.0.0:8080"))
         .run(app)
         .await?;
