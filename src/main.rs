@@ -1,7 +1,5 @@
 #![allow(clippy::option_map_unit_fn)]
-// #![forbid(clippy::unwrap_used)]
-
-
+#![forbid(clippy::unwrap_used)]
 
 use async_graphql::{http::{playground_source, GraphQLPlaygroundConfig, GraphiQLSource}, EmptyMutation, EmptySubscription, Schema};
 use async_graphql_poem::GraphQL;
@@ -9,7 +7,7 @@ use async_graphql_poem::GraphQL;
 // use actix_web::{get, middleware::Logger, App, HttpServer, Responder, HttpResponse, Error, web::{self, Data}, http::header, HttpRequest};
 use carboxyl::Sink;
 use futures_util::StreamExt;
-use log::{error, info};
+use tracing::{debug, error, info, warn};
 use poem::{get, handler, http::StatusCode, listener::TcpListener, EndpointExt, IntoResponse, Response, Route};
 // use juniper_graphql_ws::ConnectionConfig;
 // use juniper_warp::subscriptions::serve_graphql_ws;
@@ -62,9 +60,9 @@ lazy_static::lazy_static! {
     pub static ref TA_STATE : RwLock<packets::TAState> = {
         RwLock::new(packets::TAState::new())
     };
-    pub static ref TA_CON: RwLock<Option<connection::TAConnection>> = {
-        RwLock::new(None)
-    };
+    // pub static ref TA_CON: RwLock<Option<connection::TAConnection>> = {
+    //     RwLock::new(None)
+    // };
     pub static ref OVER_STATE : RwLock<GQLOverState> = {
         RwLock::new(GQLOverState::default())
     };
@@ -108,44 +106,58 @@ async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
     env_logger::init();
     // show a pretty ascii banner
-    log::info!(
+    info!(
         "{} v{}\n Created by {}",
-        convert("TARS".to_string()).unwrap(),
+        convert("TARS".to_string()).expect("should not fail"),
         env!("CARGO_PKG_VERSION"),
         &env!("CARGO_PKG_AUTHORS").replace(':', " & ")
     );
 
     safety_checks();
 
-    log::info!("Connecting to Server...");
-    *TA_CON.write().await = Some(
-        connection::TAConnection::connect(std::env::var("TA_WS_URI").unwrap(), "TA-Relay-TX")
-            .await
-            .unwrap(),
-    );
+    info!("Connecting to Server...");
+    // *TA_CON.write().await = Some(
+    //     match connection::TAConnection::connect(std::env::var("TA_WS_URI").expect("passed safety checks, should not fail"),"TA-Relay-TX").await {
+    //         Ok(con) => con,
+    //         Err(e) => {
+    //             error!("Failed to connect to server (tx). Check your websocket uri.");
+    //             debug!("Error: {}", e);
+    //             std::process::exit(1);
+    //         },
+    //     },
+    // );
     let mut ta_con =
-        connection::TAConnection::connect(std::env::var("TA_WS_URI").unwrap(), "TA-Relay-RX")
-            .await
-            .unwrap();
+        match connection::TAConnection::connect(std::env::var("TA_WS_URI").expect("passed safety checks, should not fail"),"TA-Relay-RX").await {
+            Ok(con) => con,
+            Err(e) => {
+                error!("Failed to connect to server (rx). Check your websocket uri.");
+                debug!("Error: {}", e);
+                std::process::exit(1);
+            },
+        };
 
     std::thread::spawn(move || {
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
-            .unwrap()
+            .expect("Failed to create tokio runtime")
             .block_on(async move {
                 while let Some(msg) = ta_con.next().await {
                     let msg = match msg {
                         Ok(msg) => msg,
                         Err(e) => {
-                            log::error!("Error receiving message: {}", e);
+                            error!("Error receiving message: {}", e);
                             continue;
                         }
                     };
-                    tokio::spawn(async {
-                        packets::route_packet(&mut *TA_STATE.write().await, msg)
-                            .await
-                            .unwrap();
+                    tokio::spawn(async move {
+                        match packets::route_packet(&mut *TA_STATE.write().await,msg.clone()).await {
+                            Ok(_) => {},
+                            Err(e) => {
+                                warn!("Error routing packet. {:#?}", msg);
+                                debug!("Error: {}", e);
+                            },
+                        };
 
                         TA_UPDATE_SINK.send(TAUpdates::NewState);
                     });
@@ -153,59 +165,6 @@ async fn main() -> anyhow::Result<()> {
             });
     });
 
-    // let state = warp::any().map(move || Context {});
-
-    // let graphql_filter = juniper_warp::make_graphql_filter(create_schema(), state.boxed());
-    // let log = warp::log("ta_relay_rs");
-    // let root_node = Arc::new(create_schema());
-
-    // let cors = warp::cors()
-    //     .allow_any_origin()
-    //     .allow_methods(vec!["POST", "GET", "OPTIONS"])
-    //     .allow_headers(vec![
-    //         "User-Agent",
-    //         "Sec-Fetch-Mode",
-    //         "Referer",
-    //         "Origin",
-    //         "Content-Type",
-    //         "Access-Control-Request-Method",
-    //         "Access-Control-Request-Headers",
-    //         "Sec-WebSocket-Protocol",
-    //     ])
-    //     .allow_credentials(true)
-    //     .max_age(3600);
-
-    // warp::serve(
-    //     warp::get()
-    //         .and(warp::path("graphiql").and(juniper_warp::graphiql_filter("/graphql", None)))
-    //         .or(warp::path("playground").and(juniper_warp::playground_filter("/graphql", None)))
-    //         .or(warp::path("graphql")
-    //             .and(warp::ws())
-    //             .map(move |ws: warp::ws::Ws| {
-    //                 let root_node = root_node.clone();
-    //                 let config = ConnectionConfig::new(Context {});
-    //                 let config = config.with_keep_alive_interval(Duration::from_secs(15));
-    //                 ws.on_upgrade(move |websocket| async move {
-    //                     serve_graphql_ws(websocket, root_node, config)
-    //                         .map(|r| {
-    //                             if let Err(e) = r {
-    //                                 println!("Websocket error: {e}");
-    //                             }
-    //                         })
-    //                         .await
-    //                 })
-    //             })
-    //             .map(|reply| {
-    //                 // this is todo in the example, but it's required for the magic websocket magic to work!
-    //                 warp::reply::with_header(reply, "Sec-WebSocket-Protocol", "graphql-ws")
-    //             })
-    //             .map(|reply| warp::reply::with_header(reply, "Access-Control-Allow-Origin", "*")))
-    //         .or(warp::path("graphql").and(graphql_filter))
-    //         .with(log)
-    //         .with(cors),
-    // )
-    // .run(([0, 0, 0, 0], 8080))
-    // .await;
     let schema = Schema::build(Query, EmptyMutation, EmptySubscription)
         .finish();
 
@@ -246,4 +205,12 @@ fn safety_checks() {
     if failed {
         std::process::exit(1);
     }
+}
+
+pub fn get_ws_uri() -> String {
+    std::env::var("TA_WS_URI").expect("TA_WS_URI not set in .env")
+}
+
+pub fn parse_uuid(uuid: &str) -> uuid::Uuid {
+    uuid::Uuid::parse_str(uuid).expect("Failed to parse UUID")
 }

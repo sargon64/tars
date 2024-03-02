@@ -10,11 +10,11 @@ pub struct Query;
 
 #[Object]
 impl Query {
-    async fn state<'ctx>(&self, _ctx: &Context<'ctx>) ->  GQLTAState {
+    async fn state<'ctx>(&self, _ctx: &Context<'ctx>) ->  anyhow::Result<GQLTAState> {
         TA_STATE.read().await.into_gql().await
     }
 
-    async fn match_by_id<'ctx>(&self, _ctx: &Context<'ctx>, id: Uuid) -> Option<Match> {
+    async fn match_by_id<'ctx>(&self, _ctx: &Context<'ctx>, id: Uuid) -> anyhow::Result<Option<Match>> {
         TA_STATE.read().await.get_single_match_gql(id).await
     }
 

@@ -1,8 +1,9 @@
 use async_graphql::{Enum, InputObject, SimpleObject};
 use tap::Tap;
+use tracing::warn;
 use uuid::Uuid;
 
-use crate::packets::TAState;
+use crate::{packets::TAState, parse_uuid};
 
 #[derive(SimpleObject, Default)]
 pub struct User {
@@ -152,19 +153,25 @@ impl InputPage {
 }
 
 impl TAState {
-    pub async fn get_single_match_gql(&self, id: Uuid) -> Option<Match> {
-        let match_ = self
-            .matches
-            .iter()
-            .find(|m| Uuid::parse_str(&m.guid).unwrap() == id)?;
-        Some(Match {
-            guid: Uuid::parse_str(&match_.guid).unwrap(),
+    pub async fn get_single_match_gql(&self, id: Uuid) -> anyhow::Result<Option<Match>> {
+        let match_ = match self
+                    .matches
+                    .iter()
+                    .find(|m| parse_uuid(&m.guid)== id) {
+            Some(match_) => match_,
+            None => {
+                warn!("No match with id {}.", id);
+                return Ok(None)
+            },
+        };
+        Ok(Some(Match {
+            guid: parse_uuid(&match_.guid),
             players: match_
                 .associated_users
                 .iter()
                 .filter_map(|u| {
                     self.players.iter().find(|p| p.guid == *u).map(|p| User {
-                        guid: Uuid::parse_str(&p.guid).unwrap(),
+                        guid: parse_uuid(&p.guid),
                         name: p.name.clone(),
                         user_id: p.user_id.clone(),
                         play_state: unsafe {
@@ -178,7 +185,7 @@ impl TAState {
                             )
                         },
                         team: p.team.as_ref().map(|t| Team {
-                            guid: Uuid::parse_str(&t.id).unwrap(),
+                            guid: parse_uuid(&t.id),
                             name: t.name.clone(),
                         }),
                         mod_list: p.mod_list.clone(),
@@ -196,7 +203,7 @@ impl TAState {
                         .find(|p| p.guid == *u)
                         .and_then(|p| {
                             p.team.as_ref().map(|t| Team {
-                                guid: Uuid::parse_str(&t.id).unwrap(),
+                                guid: parse_uuid(&t.id),
                                 name: t.name.clone(),
                             })
                         })
@@ -212,7 +219,7 @@ impl TAState {
                         .iter()
                         .find(|p| p.guid == *u)
                         .map(|c| User {
-                            guid: Uuid::parse_str(&c.guid).unwrap(),
+                            guid: parse_uuid(&c.guid),
                             name: c.name.clone(),
                             user_id: c.user_id.clone(),
                             play_state: unsafe {
@@ -226,7 +233,7 @@ impl TAState {
                                 )
                             },
                             team: c.team.as_ref().map(|t| Team {
-                                guid: Uuid::parse_str(&t.id).unwrap(),
+                                guid: parse_uuid(&t.id),
                                 name: t.name.clone(),
                             }),
                             mod_list: c.mod_list.clone(),
@@ -244,7 +251,7 @@ impl TAState {
                             .clone()
                             .split('_')
                             .last()
-                            .unwrap()
+                            .unwrap_or_default()
                             .to_string(),
                         name: level.name.clone(),
                         difficulty: match_.selected_difficulty,
@@ -264,11 +271,29 @@ impl TAState {
                     })
                     .filter(|u| self.rts.contains_key(*u))
                     .map(|u| {
-                        let rts = self.rts.get(u).unwrap();
-                        let right_hand = rts.right_hand.clone().unwrap();
-                        let left_hand = rts.left_hand.clone().unwrap();
-                        Score {
-                            owner_guid: Uuid::parse_str(u).unwrap(),
+                        let rts = match self.rts.get(u) {
+                            Some(rts) => rts,
+                            None => {
+                                warn!("No RTS for user {}.", u);
+                                return Err(anyhow::anyhow!("No RTS for user {}.", u))
+                            },
+                        };
+                        let right_hand = match rts.right_hand.clone() {
+                            Some(rts) => rts,
+                            None => {
+                                warn!("No right hand for user {}.", u);
+                                return Err(anyhow::anyhow!("No right hand for user {}.", u))
+                            },
+                        };
+                        let left_hand = match rts.left_hand.clone() {
+                            Some(rts) => rts,
+                            None => {
+                                warn!("No left hand for user {}.", u);
+                                return Err(anyhow::anyhow!("No left hand for user {}.", u))
+                            },
+                        };
+                        Ok(Score {
+                            owner_guid: parse_uuid(u),
                             score: rts.score,
                             score_with_modifiers: rts.score_with_modifiers,
                             max_score: rts.max_score,
@@ -288,20 +313,20 @@ impl TAState {
                             right_hand_hits: right_hand.hit,
                             right_hand_misses: right_hand.miss,
                             right_hand_bad_cut: right_hand.bad_cut,
-                        }
+                        })
                     })
-                    .collect()
+                    .collect::<anyhow::Result<Vec<Score>>>()?
             },
-        })
+        }))
     }
 
-    pub async fn into_gql(&self) -> GQLTAState {
-        GQLTAState {
+    pub async fn into_gql(&self) -> anyhow::Result<GQLTAState> {
+        Ok(GQLTAState {
             players: self
                 .players
                 .iter()
                 .map(|p| User {
-                    guid: Uuid::parse_str(&p.guid).unwrap(),
+                    guid: parse_uuid(&p.guid),
                     user_id: p.user_id.clone(),
                     name: p.name.clone(),
                     play_state: unsafe {
@@ -313,7 +338,7 @@ impl TAState {
                         )
                     },
                     team: p.team.as_ref().map(|t| Team {
-                        guid: Uuid::parse_str(&t.id).unwrap(),
+                        guid: parse_uuid(&t.id),
                         name: t.name.clone(),
                     }),
                     mod_list: p.mod_list.clone(),
@@ -325,7 +350,7 @@ impl TAState {
                 .coordinators
                 .iter()
                 .map(|p| User {
-                    guid: Uuid::parse_str(&p.guid).unwrap(),
+                    guid: parse_uuid(&p.guid),
                     name: p.name.clone(),
                     user_id: p.user_id.clone(),
                     play_state: unsafe {
@@ -337,7 +362,7 @@ impl TAState {
                         )
                     },
                     team: p.team.as_ref().map(|t| Team {
-                        guid: Uuid::parse_str(&t.id).unwrap(),
+                        guid: parse_uuid(&t.id),
                         name: t.name.clone(),
                     }),
                     mod_list: p.mod_list.clone(),
@@ -348,14 +373,14 @@ impl TAState {
             matches: self
                 .matches
                 .iter()
-                .map(|m| Match {
-                    guid: Uuid::parse_str(&m.guid).unwrap(),
+                .map(|m| Ok(Match {
+                    guid: parse_uuid(&m.guid),
                     players: m
                         .associated_users
                         .iter()
                         .filter_map(|u| {
                             self.players.iter().find(|p| p.guid == *u).map(|p| User {
-                                guid: Uuid::parse_str(&p.guid).unwrap(),
+                                guid: parse_uuid(&p.guid),
                                 name: p.name.clone(),
                                 user_id: p.user_id.clone(),
                                 play_state: unsafe {
@@ -369,7 +394,7 @@ impl TAState {
                                     )
                                 },
                                 team: p.team.as_ref().map(|t| Team {
-                                    guid: Uuid::parse_str(&t.id).unwrap(),
+                                    guid: parse_uuid(&t.id),
                                     name: t.name.clone(),
                                 }),
                                 mod_list: p.mod_list.clone(),
@@ -387,7 +412,7 @@ impl TAState {
                                 .find(|p| p.guid == *u)
                                 .and_then(|p| {
                                     p.team.as_ref().map(|t| Team {
-                                        guid: Uuid::parse_str(&t.id).unwrap(),
+                                        guid: parse_uuid(&t.id),
                                         name: t.name.clone(),
                                     })
                                 })
@@ -403,7 +428,7 @@ impl TAState {
                                         .iter()
                                         .find(|p| p.guid == *u)
                                         .map(|c| User {
-                                            guid: Uuid::parse_str(&c.guid).unwrap(),
+                                            guid: parse_uuid(&c.guid),
                                             name: c.name.clone(),
                                             user_id: c.user_id.clone(),
                                             play_state: unsafe {
@@ -423,7 +448,7 @@ impl TAState {
                                                 )
                                             },
                                             team: c.team.as_ref().map(|t| Team {
-                                                guid: Uuid::parse_str(&t.id).unwrap(),
+                                                guid: parse_uuid(&t.id),
                                                 name: t.name.clone(),
                                             }),
                                             mod_list: c.mod_list.clone(),
@@ -440,7 +465,7 @@ impl TAState {
                                     .clone()
                                     .split('_')
                                     .last()
-                                    .unwrap()
+                                    .unwrap_or_default()
                                     .to_string(),
                                 name: level.name.clone(),
                                 difficulty: m.selected_difficulty,
@@ -459,11 +484,29 @@ impl TAState {
                         })
                         .filter(|u| self.rts.contains_key(*u))
                         .map(|u| {
-                            let rts = self.rts.get(u).unwrap();
-                            let right_hand = rts.right_hand.clone().unwrap();
-                            let left_hand = rts.left_hand.clone().unwrap();
-                            Score {
-                                owner_guid: Uuid::parse_str(u).unwrap(),
+                            let rts = match self.rts.get(u) {
+                                Some(rts) => rts,
+                                None => {
+                                    warn!("No RTS for user {}.", u);
+                                    return Err(anyhow::anyhow!("No RTS for user {}.", u))
+                                },
+                            };
+                            let right_hand = match rts.right_hand.clone() {
+                                Some(rts) => rts,
+                                None => {
+                                    warn!("No right hand for user {}.", u);
+                                    return Err(anyhow::anyhow!("No right hand for user {}.", u))
+                                },
+                            };
+                            let left_hand = match rts.left_hand.clone() {
+                                Some(rts) => rts,
+                                None => {
+                                    warn!("No left hand for user {}.", u);
+                                    return Err(anyhow::anyhow!("No left hand for user {}.", u))
+                                },
+                            };
+                            Ok(Score {
+                                owner_guid: parse_uuid(u),
                                 score: rts.score,
                                 score_with_modifiers: rts.score_with_modifiers,
                                 max_score: rts.max_score,
@@ -483,11 +526,11 @@ impl TAState {
                                 right_hand_hits: right_hand.hit,
                                 right_hand_misses: right_hand.miss,
                                 right_hand_bad_cut: right_hand.bad_cut,
-                            }
+                            })
                         })
-                        .collect(),
-                })
-                .collect(),
-        }
+                        .collect::<anyhow::Result<Vec<Score>>>()?,
+                }))
+                .collect::<anyhow::Result<Vec<Match>>>()?,
+        })
     }
 }

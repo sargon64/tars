@@ -2,7 +2,8 @@ use futures_util::{stream::{SplitStream, SplitSink}, StreamExt, SinkExt, Stream}
 use prost::Message as _;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{WebSocketStream, MaybeTlsStream, tungstenite::Message};
-use crate::{proto::{models, packet}};
+use tracing::error;
+use crate::proto::{models, packet};
 
 #[derive(Debug)]
 pub struct TAConnection {
@@ -18,7 +19,7 @@ impl TAConnection {
         let (ws_stream, _) = match tokio_tungstenite::connect_async(uri).await {
             Ok(c) => c,
             Err(_) => {
-                log::error!("Failed to connect to server. Are you sure you're connecting to the overlay websocket?");
+                error!("Failed to connect to server. Are you sure you're connecting to the overlay websocket?");
                 return Err(anyhow::anyhow!("Failed to connect to server. Are you sure you're connecting to the overlay websocket?"));
             },
         };
@@ -42,7 +43,13 @@ impl TAConnection {
             }))
         };
 
-        ws_tx.send(Message::Binary(connect.encode_to_vec())).await.unwrap();
+        match ws_tx.send(Message::Binary(connect.encode_to_vec())).await {
+            Ok(_) => {},
+            Err(e) => {
+                error!("Failed to send connect packet. {:#?}", e);
+                return Err(anyhow::anyhow!("Failed to send connect packet. {:#?}", e));
+            },
+        };
 
         Ok(TAConnection {
             ws_rx,
