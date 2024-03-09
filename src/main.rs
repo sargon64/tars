@@ -14,12 +14,13 @@ use poem::{
     get, handler, http::StatusCode, listener::TcpListener, EndpointExt, IntoResponse, Response,
     Route,
 };
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, level_filters::LevelFilter, warn};
 // use juniper_graphql_ws::ConnectionConfig;
 // use juniper_warp::subscriptions::serve_graphql_ws;
 use structs::GQLOverState;
 use text_to_ascii_art::convert;
 use tokio::sync::RwLock;
+use tracing_subscriber::filter;
 
 use crate::gql::Query;
 // use warp::Filter;
@@ -110,7 +111,9 @@ fn options() -> impl IntoResponse {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
-    env_logger::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(filter::EnvFilter::builder().with_default_directive(LevelFilter::INFO.into()).from_env()?)
+        .init();
     // show a pretty ascii banner
     info!(
         "{} v{}\n Created by {}",
