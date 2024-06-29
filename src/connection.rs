@@ -44,7 +44,7 @@ impl TAConnection {
                 r#type: Some(packet::request::Type::Connect(packet::request::Connect {
                     user: Some(ws_user.clone()),
                     password: "".to_string(),
-                    client_version: 78, // Server version, should be updated when the server is updated :3
+                    client_version: 79, // Server version, should be updated when the server is updated :3
                 })),
             })),
         };
