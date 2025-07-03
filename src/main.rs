@@ -7,7 +7,7 @@ use async_graphql::{
 };
 use async_graphql_poem::GraphQL;
 // use actix_cors::Cors;
-// use actix_web::{get, middleware::Logger, App, HttpServer, Responder, HttpResponse, Error, web::{self, Data}, http::header, HttpRequest};
+// use actix_web::{get, middleware::Logger, App, HttpServer, Responder, HttpResponse, Error, web::{self, Data}, http::header, HttpRequest};},
 use carboxyl::Sink;
 use futures_util::StreamExt;
 use poem::{
@@ -112,7 +112,11 @@ fn options() -> impl IntoResponse {
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
     tracing_subscriber::fmt()
-        .with_env_filter(filter::EnvFilter::builder().with_default_directive(LevelFilter::INFO.into()).from_env()?)
+        .with_env_filter(
+            filter::EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env()?,
+        )
         .init();
     // show a pretty ascii banner
     info!(
@@ -209,7 +213,7 @@ fn safety_checks() {
     }
 
     if let Ok(uri) = std::env::var("TA_WS_URI") {
-        let port = uri.split(':').last().unwrap_or("");
+        let port = *uri.split(':').collect::<Vec<_>>().last().unwrap_or(&"");
         if port == "2052" {
             info!("TA_WS_URI is set to use port 2052, but the default port is 2053. Are you using the correct port?");
         }

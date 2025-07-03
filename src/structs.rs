@@ -244,8 +244,9 @@ impl TAState {
                         .level_id
                         .clone()
                         .split('_')
+                        .collect::<Vec<_>>()
                         .last()
-                        .unwrap_or_default()
+                        .unwrap_or(&"")
                         .to_string(),
                     name: level.name.clone(),
                     difficulty: match_.selected_difficulty,
@@ -456,8 +457,9 @@ impl TAState {
                                     .level_id
                                     .clone()
                                     .split('_')
+                                    .collect::<Vec<_>>()
                                     .last()
-                                    .unwrap_or_default()
+                                    .unwrap_or(&"")
                                     .to_string(),
                                 name: level.name.clone(),
                                 difficulty: m.selected_difficulty,
@@ -497,7 +499,10 @@ impl TAState {
                                     Some(rts) => rts,
                                     None => {
                                         warn!("No left hand for user {}.", u);
-                                        return Err(anyhow::anyhow!("No left hand for user {}.", u));
+                                        return Err(anyhow::anyhow!(
+                                            "No left hand for user {}.",
+                                            u
+                                        ));
                                     }
                                 };
                                 Ok(Score {
