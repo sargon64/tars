@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.1](https://github.com/sargon64/tars/compare/v0.1.0...v0.1.1) (2025-07-03)
+
+
+### Bug Fixes
+
+* clippy warnings ([96887e1](https://github.com/sargon64/tars/commit/96887e19c4d3f07ee85836dd11237e82bcaf10c2))
+* update client version ([63433f6](https://github.com/sargon64/tars/commit/63433f6c23e6a5e83ac182b1cad649e6e71e0b89))
+* update TA version from 74 -&gt; 78 ([f8fafd8](https://github.com/sargon64/tars/commit/f8fafd8506433e4ea728b4416e056091bef72ae2))
+
 ## 0.1.0 (2024-03-02)
 
 
